@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SASH Carousel</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+<style>
+
+/* ================= BASE ================= */
+
+html, body {
+    height: 100%;
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    background:#000;
+    font-family:'Inter',sans-serif;
+    color:#fff;
+    display:flex;
+    justify-content:center;
+
+    /* reduced top spacing */
+    padding:40px 20px 30px;
+
+    overflow:hidden;
+    position:relative;
+    min-height:100vh;
+}
+
+/* ================= BACKGROUND FIX (NO BLACK LINE) ================= */
+
+body::before,
+body::after{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+}
+
+/* stars */
+body::before{
+    background-image:
+        radial-gradient(2px 2px at 20px 30px, #ffffff70, transparent),
+        radial-gradient(1px 1px at 120px 80px, #ffffff60, transparent),
+        radial-gradient(1px 1px at 260px 200px, #ffffff50, transparent),
+        radial-gradient(1px 1px at 400px 120px, #ffffff60, transparent),
+        radial-gradient(1px 1px at 600px 300px, #ffffff40, transparent);
+
+    background-size:800px 500px;
+    animation:starsMove 120s linear infinite;
+    opacity:0.6;
+}
+
+/* nebula glow */
+body::after{
+    background:
+        radial-gradient(circle at 30% 20%, rgba(120,80,255,0.18), transparent 55%),
+        radial-gradient(circle at 70% 80%, rgba(0,200,255,0.12), transparent 60%);
+}
+
+@keyframes starsMove{
+    from{ transform:translateY(0); }
+    to{ transform:translateY(-400px); }
+}
+
+/* ================= SHOOTING STARS ================= */
+
+.shooting-star{
+    position:fixed;
+    width:2px;
+    height:2px;
+    background:white;
+    box-shadow:0 0 10px white, 0 0 20px white;
+    transform:rotate(45deg);
+    opacity:0;
+    pointer-events:none;
+}
+
+/* ================= MAIN ================= */
+
+.main{
+    width:100%;
+    max-width:1400px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    align-items:center;
+    position:relative;
+    z-index:2;
+}
+
+/* ================= TIMER ================= */
+
+.timer{
+    display:flex;
+    gap:14px;
+    margin-bottom:6px; /* reduced gap */
+}
+
+.timer-box{
+    min-width:95px;
+    padding:14px 16px;
+    border-radius:16px;
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.15);
+    backdrop-filter:blur(18px);
+    text-align:center;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+}
+
+.timer-value{
+    font-size:28px;
+    font-weight:800;
+}
+
+.timer-label{
+    font-size:12px;
+    opacity:0.7;
+    text-transform:uppercase;
+    letter-spacing:1px;
+}
+
+/* ================= CAROUSEL ================= */
+
+.carousel-wrap{
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+}
+
+.carousel {
+    width:100vw;
+    max-width:1400px;
+    height:560px;
+    position:relative;
+    perspective:1600px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    animation:float 6s ease-in-out infinite;
+}
+
+@keyframes float{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-6px); }
+}
+
+.card {
+    position:absolute;
+    width:260px;
+    height:380px;
+    border-radius:18px;
+    overflow:hidden;
+}
+
+.card img {
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+/* ================= CONTROLS ================= */
+
+.controls {
+    margin-top:6px;
+    display:flex;
+    gap:12px;
+}
+
+button {
+    padding:10px 22px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,0.18);
+    background:rgba(255,255,255,0.06);
+    color:white;
+    cursor:pointer;
+    backdrop-filter:blur(12px);
+}
+
+/* ================= SHOOTING STAR ================= */
+
+@keyframes shoot {
+    0% { transform: translate(0,0) rotate(45deg); opacity:0; }
+    10% { opacity:1; }
+    100% { transform: translate(-500px,300px) rotate(45deg); opacity:0; }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="main">
+
+    <!-- TIMER -->
+    <div class="timer">
+        <div class="timer-box"><div class="timer-value" id="days">0</div><div class="timer-label">Days</div></div>
+        <div class="timer-box"><div class="timer-value" id="hours">00</div><div class="timer-label">Hours</div></div>
+        <div class="timer-box"><div class="timer-value" id="minutes">00</div><div class="timer-label">Minutes</div></div>
+        <div class="timer-box"><div class="timer-value" id="seconds">00</div><div class="timer-label">Seconds</div></div>
+    </div>
+
+    <!-- CAROUSEL -->
+    <div class="carousel-wrap">
+        <div class="carousel" id="carousel"></div>
+
+        <div class="controls">
+            <button id="prev">Prev</button>
+            <button id="next">Next</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+/* ================= TIMER ================= */
+
+const startDate = new Date("2025-12-25T00:00:00");
+
+function updateCounter(){
+    const now = new Date();
+    let diff = now - startDate;
+    if(diff < 0) diff = Math.abs(diff);
+
+    const total = Math.floor(diff / 1000);
+
+    document.getElementById("days").textContent = Math.floor(total / 86400);
+    document.getElementById("hours").textContent = String(Math.floor((total % 86400)/3600)).padStart(2,"0");
+    document.getElementById("minutes").textContent = String(Math.floor((total % 3600)/60)).padStart(2,"0");
+    document.getElementById("seconds").textContent = String(total % 60).padStart(2,"0");
+}
+
+setInterval(updateCounter,1000);
+updateCounter();
+
+/* ================= SHOOTING STARS ================= */
+
+function createStar(){
+    const star = document.createElement("div");
+    star.className = "shooting-star";
+
+    star.style.left = Math.random() * window.innerWidth + "px";
+    star.style.top = Math.random() * window.innerHeight * 0.4 + "px";
+
+    document.body.appendChild(star);
+
+    gsap.to(star,{
+        x:-600,
+        y:400,
+        opacity:1,
+        duration:0.8,
+        ease:"power2.out",
+        onComplete:()=>star.remove()
+    });
+
+    gsap.to(star,{ opacity:0, duration:0.8 });
+}
+
+setInterval(()=>{
+    if(Math.random() > 0.5) createStar();
+},1200);
+
+/* ================= CAROUSEL ================= */
+
+const images = [
+  "https://lh3.googleusercontent.com/d/1nE9rEL53iJhjROC3BYN6gfnxAxGuQIyj=s1200",
+  "https://lh3.googleusercontent.com/d/1jV8iTGjJbUVpaWgu0lB_5c04MqutSTw6=s1200",
+  "https://lh3.googleusercontent.com/d/179YuKDt6rhOFn05xWnsIdeXaDHqwb33I=s1200",
+  "https://lh3.googleusercontent.com/d/1uadIikQ_saPsOwdT1_jbfezHYDJ0by3C=s1200",
+  "https://lh3.googleusercontent.com/d/1OOE1rIdmxUMA9Wxp2wmKeePLL5NiUrwy=s1200",
+  "https://lh3.googleusercontent.com/d/1SaYObeat0VZQY5gJQjQoCnTuS-DNxQVn=s1200",
+  "https://lh3.googleusercontent.com/d/1_34nxbgHeby9wb_aLOJBBv5u-x0-BaqH=s1200",
+];
+
+const container = document.getElementById("carousel");
+
+let index = 0;
+const n = images.length;
+
+/* AUTO SLIDE */
+let idleTimer, autoTimer, running=false;
+
+function startIdle(){
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(()=>{
+        if(!running){
+            running = true;
+            autoTimer = setInterval(()=>move(1),5000);
+        }
+    },10000);
+}
+
+function reset(){
+    running = false;
+    clearInterval(autoTimer);
+    startIdle();
+}
+
+/* ================= LAYOUT ================= */
+
+const layout = [
+  { x:-520,z:-500,rotY:55,scale:0.55,blur:5,opacity:0.3 },
+  { x:-340,z:-300,rotY:30,scale:0.7,blur:3,opacity:0.5 },
+  { x:-160,z:-120,rotY:12,scale:0.9,blur:1,opacity:0.8 },
+  { x:0,z:0,rotY:0,scale:1.25,blur:0,opacity:1 },
+  { x:160,z:-120,rotY:-12,scale:0.9,blur:1,opacity:0.8 },
+  { x:340,z:-300,rotY:-30,scale:0.7,blur:3,opacity:0.5 },
+  { x:520,z:-500,rotY:-55,scale:0.55,blur:5,opacity:0.3 },
+];
+
+function norm(d){
+    if(d>n/2)d-=n;
+    if(d<-n/2)d+=n;
+    return d;
+}
+
+function build(){
+    container.innerHTML="";
+    images.forEach((src,i)=>{
+        const c=document.createElement("div");
+        c.className="card";
+        c.innerHTML=`<img src="${src}">`;
+        c.onclick=()=>{index=i;update();reset();};
+        container.appendChild(c);
+    });
+    update();
+    startIdle();
+}
+
+function update(){
+    document.querySelectorAll(".card").forEach((c,i)=>{
+        let d=norm(i-index);
+        let p=layout[d+3];
+
+        gsap.to(c,{
+            x:p.x,z:p.z,rotateY:p.rotY,
+            scale:p.scale,opacity:p.opacity,
+            duration:1,ease:"power3.out"
+        });
+
+        gsap.to(c,{filter:`blur(${p.blur}px)`,duration:1});
+        c.style.zIndex=100-Math.abs(d);
+    });
+}
+
+function move(dir){
+    index=(index+dir+n)%n;
+    update();
+}
+
+document.getElementById("next").onclick=()=>{move(1);reset();};
+document.getElementById("prev").onclick=()=>{move(-1);reset();};
+document.addEventListener("mousedown",reset);
+
+build();
+
+</script>
+
+</body>
+</html>
